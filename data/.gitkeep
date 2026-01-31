@@ -1,0 +1,4 @@
+# This directory stores skill vectors
+# Files generated at runtime:
+# - skill_vectors.npy
+# - skill_ids.npy
