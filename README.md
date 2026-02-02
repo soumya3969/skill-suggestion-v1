@@ -1,10 +1,11 @@
 # Skill Suggestion Service
 
-A semantic skill suggestion service that uses vector similarity to recommend relevant skills based on job roles.
+A semantic skill suggestion service that uses vector similarity to recommend relevant skills based on job roles. Supports custom model training on labeled role-skill pairs.
 
 ## Features
 
-- **Semantic Search**: Uses sentence-transformers (all-MiniLM-L6-v2) to understand skill context
+- **Semantic Search**: Uses sentence-transformers to understand skill context
+- **Trainable Model**: Fine-tune on role-skill pairs for learned associations
 - **Vector-based Matching**: Cosine similarity for accurate skill matching
 - **Read-only Database Access**: No modifications to production data
 - **Hot Reload**: Refresh vectors via API without service restart
@@ -15,7 +16,7 @@ A semantic skill suggestion service that uses vector similarity to recommend rel
 - Python 3.9+
 - FastAPI
 - sentence-transformers
-- NumPy
+- NumPy / PyTorch
 - psycopg2
 - PostgreSQL (read-only)
 
@@ -26,14 +27,20 @@ skill_suggest_v1/
 ├── data/
 │   ├── skill_vectors.npy    # Skill embeddings
 │   └── skill_ids.npy        # Skill ID mapping
+├── models/
+│   └── skill-matcher-v1/    # Trained model (after training)
+├── training_data/
+│   └── role_skills.csv      # Training data
 ├── core/
 │   ├── db.py                # Database operations
 │   ├── vectorizer.py        # Embedding generation
 │   ├── similarity.py        # Search engine
-│   └── normalizer.py        # Text normalization
+│   ├── normalizer.py        # Text normalization
+│   └── trainer.py           # Model training
 ├── api/
 │   ├── suggest.py           # Suggestion endpoint
-│   └── refresh.py           # Refresh endpoint
+│   ├── refresh.py           # Refresh endpoint
+│   └── train.py             # Training endpoints
 ├── app.py                   # FastAPI application
 ├── requirements.txt
 └── README.md
@@ -130,12 +137,55 @@ Check service health.
 }
 ```
 
+### POST /model/train
+
+Train the model on role-skill pairs.
+
+**Request:**
+```json
+{
+  "training_file": "role_skills.csv",
+  "epochs": 10,
+  "batch_size": 16
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "model_path": "models/skill-matcher-v1",
+  "training_pairs": 245,
+  "epochs": 10,
+  "message": "Successfully trained model on 245 pairs"
+}
+```
+
+### GET /model/status
+
+Check if trained model exists.
+
+**Response:**
+```json
+{
+  "trained_model_exists": true,
+  "model_path": "models/skill-matcher-v1",
+  "skills_indexed": 5432,
+  "using_trained_model": true
+}
+```
+
+### DELETE /model/trained
+
+Delete trained model and revert to base model.
+
 ## How It Works
 
 ### 1. Skill Vectorization (Startup)
 
 - Fetches active skills from database (`curatal_skill = 1`)
-- Generates 384-dimensional embeddings using all-MiniLM-L6-v2
+- Generates 384-dimensional embeddings using sentence-transformers
+- Uses trained model if available, otherwise base model (all-MiniLM-L6-v2)
 - L2-normalizes all vectors for efficient cosine similarity
 - Saves vectors to disk (`.npy` files)
 - Loads vectors into memory
@@ -153,6 +203,34 @@ Check service health.
 - Rebuilds all vectors
 - Atomically swaps in-memory vectors
 - No service restart required
+
+### 4. Model Training (Optional)
+
+The base model matches skills by text similarity. For learned associations (e.g., "MERN Stack" → MongoDB, React), train a custom model:
+
+1. Prepare training data CSV with role-skill mappings
+2. Call POST /model/train
+3. Model learns to place roles near their associated skills
+4. Vectors are automatically rebuilt with trained model
+
+**Training Data Format (CSV):**
+```csv
+role,skills
+"MERN Stack Developer","MongoDB,Express.js,React.js,Node.js,JavaScript"
+"Data Scientist","Python,Machine Learning,Pandas,NumPy,SQL,TensorFlow"
+```
+
+**Training Process:**
+- Uses contrastive learning (MultipleNegativesRankingLoss)
+- Each (role, skill) pair is a positive example
+- Other skills in batch serve as negatives
+- Model learns semantic associations, not just text similarity
+
+**Adding New Skills After Training:**
+- Add skill to database
+- Call POST /skills/refresh-vectors
+- New skill gets embedded with trained model
+- No retraining needed (model generalizes)
 
 ## Text Normalization
 
