@@ -16,13 +16,28 @@ from core.normalizer import normalize_skill_name
 logger = logging.getLogger(__name__)
 
 # Model configuration
-MODEL_NAME = "all-MiniLM-L6-v2"
+BASE_MODEL_NAME = "all-MiniLM-L6-v2"
 EMBEDDING_DIMENSION = 384  # Dimension for all-MiniLM-L6-v2
 
 # File paths for vector storage
-DATA_DIR = Path(__file__).parent.parent / "data"
+BASE_DIR = Path(__file__).parent.parent
+DATA_DIR = BASE_DIR / "data"
+MODELS_DIR = BASE_DIR / "models"
+TRAINED_MODEL_PATH = MODELS_DIR / "skill-matcher-v1"
 VECTORS_FILE = DATA_DIR / "skill_vectors.npy"
 IDS_FILE = DATA_DIR / "skill_ids.npy"
+
+
+def get_model_to_use() -> str:
+    """
+    Determine which model to use.
+    Returns trained model path if available, otherwise base model name.
+    """
+    if TRAINED_MODEL_PATH.exists():
+        logger.info(f"Using trained model: {TRAINED_MODEL_PATH}")
+        return str(TRAINED_MODEL_PATH)
+    logger.info(f"Using base model: {BASE_MODEL_NAME}")
+    return BASE_MODEL_NAME
 
 
 class SkillVectorizer:
@@ -34,18 +49,37 @@ class SkillVectorizer:
     def __init__(self):
         """Initialize vectorizer with the sentence-transformer model."""
         self._model: Optional[SentenceTransformer] = None
+        self._model_path: Optional[str] = None
+    
+    def _load_model(self) -> SentenceTransformer:
+        """Load the appropriate model (trained or base)."""
+        model_path = get_model_to_use()
+        logger.info(f"Loading embedding model: {model_path}")
+        model = SentenceTransformer(model_path)
+        self._model_path = model_path
+        logger.info("Embedding model loaded successfully")
+        return model
     
     @property
     def model(self) -> SentenceTransformer:
         """
         Lazy load the embedding model.
         Model is loaded only when first needed.
+        Checks if trained model has changed and reloads if necessary.
         """
-        if self._model is None:
-            logger.info(f"Loading embedding model: {MODEL_NAME}")
-            self._model = SentenceTransformer(MODEL_NAME)
-            logger.info("Embedding model loaded successfully")
+        current_model_path = get_model_to_use()
+        
+        # Reload if model path changed (e.g., trained model added/removed)
+        if self._model is None or self._model_path != current_model_path:
+            self._model = self._load_model()
+        
         return self._model
+    
+    def reload_model(self) -> None:
+        """Force reload the model (used after training)."""
+        self._model = None
+        self._model_path = None
+        _ = self.model  # Trigger reload
     
     def generate_embeddings(self, texts: List[str]) -> np.ndarray:
         """

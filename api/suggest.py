@@ -1,9 +1,10 @@
 """
 Skill suggestion API endpoint.
+Supports hybrid search: role mapping + semantic fallback.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -29,6 +30,10 @@ class SuggestRequest(BaseModel):
         le=50,
         description="Maximum number of skills to return"
     )
+    use_mapping: bool = Field(
+        default=True,
+        description="Use role-skill mappings from training data if available"
+    )
     
     @field_validator("role")
     @classmethod
@@ -45,35 +50,36 @@ class SkillResponse(BaseModel):
     skill_id: int
     skill_name: str
     confidence: float
+    source: Optional[str] = None  # "mapped" or "semantic"
 
 
 class SuggestResponse(BaseModel):
     """Response model for skill suggestion."""
     normalized_role: str
     skills: List[SkillResponse]
+    search_method: str  # "mapped", "hybrid", or "semantic"
 
 
 @router.post(
     "/suggest-skills",
     response_model=SuggestResponse,
     summary="Suggest skills for a job role",
-    description="Returns a list of relevant skills based on semantic similarity to the provided role"
+    description="Returns relevant skills using hybrid search: role mapping + semantic similarity"
 )
 async def suggest_skills(request: SuggestRequest) -> SuggestResponse:
     """
     Suggest relevant skills for a given job role.
     
-    Processing steps:
-    1. Normalize the role text (lowercase, remove noise words)
-    2. Generate embedding for normalized role
-    3. Compute cosine similarity against all skill vectors
-    4. Return top-N skills above similarity threshold
+    Uses hybrid search:
+    1. Check if role matches training data mappings (e.g., "MERN Stack" -> MongoDB, React...)
+    2. If mapping found, return those skills from database
+    3. If no mapping or partial results, supplement with semantic search
     
     Args:
-        request: Contains role and optional limit
+        request: Contains role, limit, and use_mapping flag
         
     Returns:
-        Normalized role and list of matching skills with confidence scores
+        Normalized role, matching skills, and search method used
     """
     engine = get_search_engine()
     
@@ -84,28 +90,31 @@ async def suggest_skills(request: SuggestRequest) -> SuggestResponse:
         )
     
     try:
-        normalized_role, matches = engine.search(
+        normalized_role, matches, search_method = engine.hybrid_search(
             role=request.role,
-            limit=request.limit
+            limit=request.limit,
+            use_role_mapping=request.use_mapping
         )
         
         skills = [
             SkillResponse(
                 skill_id=match.skill_id,
                 skill_name=match.skill_name,
-                confidence=match.confidence
+                confidence=match.confidence,
+                source=match.source
             )
             for match in matches
         ]
         
         logger.info(
             f"Suggested {len(skills)} skills for role '{request.role}' "
-            f"(normalized: '{normalized_role}')"
+            f"(normalized: '{normalized_role}', method: {search_method})"
         )
         
         return SuggestResponse(
             normalized_role=normalized_role,
-            skills=skills
+            skills=skills,
+            search_method=search_method
         )
         
     except ValueError as e:
