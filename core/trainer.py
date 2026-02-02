@@ -187,15 +187,36 @@ def train_model(
         # Ensure output directory exists
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Train the model
+        # Use a temporary output path to avoid Windows file locking issues
+        import shutil
+        import time
+        temp_output_path = config.output_path.parent / f"skill-matcher-temp-{int(time.time())}"
+        
+        # Train the model (save to temp path first)
         logger.info(f"Starting training for {config.epochs} epochs")
         model.fit(
             train_objectives=[(train_dataloader, train_loss)],
             epochs=config.epochs,
             warmup_steps=config.warmup_steps,
             show_progress_bar=True,
-            output_path=str(config.output_path)
+            output_path=str(temp_output_path)
         )
+        
+        logger.info(f"Model trained, now moving to final location")
+        
+        # Delete old model if exists (handle Windows file locking)
+        if config.output_path.exists():
+            try:
+                shutil.rmtree(config.output_path)
+            except PermissionError:
+                # If files are locked, try renaming instead
+                backup_path = config.output_path.parent / f"skill-matcher-old-{int(time.time())}"
+                config.output_path.rename(backup_path)
+                # Schedule cleanup later
+                logger.warning(f"Old model moved to {backup_path} (was locked)")
+        
+        # Move temp model to final path
+        temp_output_path.rename(config.output_path)
         
         logger.info(f"Model saved to {config.output_path}")
         

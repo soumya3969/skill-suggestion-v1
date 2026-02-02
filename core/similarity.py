@@ -454,3 +454,13 @@ def refresh_search_engine() -> int:
     """
     engine = get_search_engine()
     return engine.refresh_vectors()
+
+
+def unload_model() -> None:
+    """
+    Unload the model from memory to release file handles.
+    Call this before retraining to avoid Windows file locking issues.
+    """
+    engine = get_search_engine()
+    if engine._vectorizer is not None:
+        engine._vectorizer.unload_model()

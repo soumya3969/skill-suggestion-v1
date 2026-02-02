@@ -18,7 +18,7 @@ from core.trainer import (
     DEFAULT_TRAINING_FILE,
     TRAINED_MODEL_PATH,
 )
-from core.similarity import refresh_search_engine, get_search_engine
+from core.similarity import refresh_search_engine, get_search_engine, unload_model
 from core.role_mapper import reload_role_mapper, get_role_mapper
 
 logger = logging.getLogger(__name__)
@@ -110,6 +110,10 @@ async def train_skill_model(request: TrainRequest) -> TrainResponse:
     logger.info(f"Starting model training from {training_file}")
     
     try:
+        # Unload existing model to release file handles (Windows fix)
+        logger.info("Unloading existing model from memory")
+        unload_model()
+        
         # Train the model
         result = train_model(training_file=training_file, config=config)
         

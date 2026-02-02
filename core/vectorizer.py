@@ -81,6 +81,19 @@ class SkillVectorizer:
         self._model_path = None
         _ = self.model  # Trigger reload
     
+    def unload_model(self) -> None:
+        """
+        Unload the model from memory to release file handles.
+        Used before retraining to avoid Windows file locking issues.
+        """
+        if self._model is not None:
+            del self._model
+            self._model = None
+            self._model_path = None
+            # Force garbage collection to release file handles
+            import gc
+            gc.collect()
+    
     def generate_embeddings(self, texts: List[str]) -> np.ndarray:
         """
         Generate normalized embeddings for a list of texts.

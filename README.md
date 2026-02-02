@@ -45,6 +45,13 @@ skill_suggest_v1/
 ├── requirements.txt
 └── README.md
 ```
+### Dev setup
+```bash
+# Create a new venv with Python 3.11/3.12
+py -3.11 -m venv venv
+# or
+py -3.12 -m venv venv
+```
 
 ## Setup
 
