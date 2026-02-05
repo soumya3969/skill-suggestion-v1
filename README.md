@@ -1,15 +1,25 @@
 # Skill Suggestion Service
 
-A semantic skill suggestion service that uses vector similarity to recommend relevant skills based on job roles. Supports custom model training on labeled role-skill pairs.
+A semantic skill suggestion service that uses vector similarity to recommend relevant skills based on job roles. Supports **hybrid search** (direct mappings + semantic similarity) and custom model training on labeled role-skill pairs.
 
 ## Features
 
-- **Semantic Search**: Uses sentence-transformers to understand skill context
+- **Hybrid Search**: Combines direct role-skill mappings with semantic similarity
 - **Trainable Model**: Fine-tune on role-skill pairs for learned associations
+- **Semantic Search**: Uses sentence-transformers to understand skill context
 - **Vector-based Matching**: Cosine similarity for accurate skill matching
 - **Read-only Database Access**: No modifications to production data
 - **Hot Reload**: Refresh vectors via API without service restart
 - **Thread-safe**: Concurrent request handling with proper locking
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Technical Design Document](docs/TECHNICAL_DESIGN_DOCUMENT.md) | Architecture, components, and system design |
+| [API Documentation](docs/API_DOCUMENTATION.md) | Complete API reference with examples |
+| Swagger UI | Interactive API docs at `/docs` |
+| ReDoc | Alternative API docs at `/redoc` |
 
 ## Tech Stack
 
@@ -24,25 +34,31 @@ A semantic skill suggestion service that uses vector similarity to recommend rel
 
 ```
 skill_suggest_v1/
-├── data/
-│   ├── skill_vectors.npy    # Skill embeddings
-│   └── skill_ids.npy        # Skill ID mapping
-├── models/
-│   └── skill-matcher-v1/    # Trained model (after training)
-├── training_data/
-│   └── role_skills.csv      # Training data
-├── core/
-│   ├── db.py                # Database operations
-│   ├── vectorizer.py        # Embedding generation
-│   ├── similarity.py        # Search engine
-│   ├── normalizer.py        # Text normalization
-│   └── trainer.py           # Model training
 ├── api/
 │   ├── suggest.py           # Suggestion endpoint
 │   ├── refresh.py           # Refresh endpoint
 │   └── train.py             # Training endpoints
+├── core/
+│   ├── db.py                # Database operations
+│   ├── vectorizer.py        # Embedding generation
+│   ├── similarity.py        # Hybrid search engine
+│   ├── normalizer.py        # Text normalization
+│   ├── role_mapper.py       # Direct role-skill mappings
+│   └── trainer.py           # Model training
+├── data/
+│   ├── skill_vectors.npy    # Skill embeddings (generated)
+│   └── skill_ids.npy        # Skill ID mapping (generated)
+├── docs/
+│   ├── TECHNICAL_DESIGN_DOCUMENT.md
+│   └── API_DOCUMENTATION.md
+├── models/
+│   └── skill-matcher-v1/    # Trained model (after training)
+├── training_data/
+│   └── role_skills.csv      # Training data
 ├── app.py                   # FastAPI application
 ├── requirements.txt
+├── .env                     # Environment variables
+├── .gitignore
 └── README.md
 ```
 ### Dev setup
@@ -88,13 +104,14 @@ The service will:
 
 ### POST /suggest-skills
 
-Suggest skills for a job role.
+Suggest skills for a job role using hybrid search.
 
 **Request:**
 ```json
 {
   "role": "Senior MERN Stack Developer",
-  "limit": 10
+  "limit": 10,
+  "use_mapping": true
 }
 ```
 
@@ -102,20 +119,33 @@ Suggest skills for a job role.
 ```json
 {
   "normalized_role": "mern stack",
+  "search_method": "mapped",
   "skills": [
     {
       "skill_id": 15241,
-      "skill_name": "React js",
-      "confidence": 0.91
+      "skill_name": "MongoDB",
+      "confidence": 0.95,
+      "source": "mapped"
     },
     {
       "skill_id": 15242,
+      "skill_name": "React.js",
+      "confidence": 0.95,
+      "source": "mapped"
+    },
+    {
+      "skill_id": 15243,
       "skill_name": "Node.js",
-      "confidence": 0.87
+      "confidence": 0.95,
+      "source": "mapped"
     }
   ]
 }
 ```
+
+**Response Fields:**
+- `search_method`: `mapped`, `semantic`, or `hybrid`
+- `source`: Per-skill indicator of origin (`mapped` or `semantic`)
 
 ### POST /skills/refresh-vectors
 
@@ -196,13 +226,49 @@ Delete trained model and revert to base model.
 - L2-normalizes all vectors for efficient cosine similarity
 - Saves vectors to disk (`.npy` files)
 - Loads vectors into memory
+- Loads role-skill mappings from training CSV
 
-### 2. Skill Suggestion (Query)
+### 2. Skill Suggestion (Hybrid Search)
 
-- Normalizes input role (lowercase, remove noise words)
-- Generates embedding for normalized role
-- Computes cosine similarity against all skill vectors
-- Returns top-N skills above threshold (0.45)
+The service uses a **hybrid search** strategy:
+
+```
+Input: "Senior MERN Stack Developer"
+         │
+         ▼
+┌─────────────────────────┐
+│ 1. Normalize Role       │  → "mern stack"
+└─────────────────────────┘
+         │
+         ▼
+┌─────────────────────────┐
+│ 2. Check Role Mapper    │  → Found in training data?
+└─────────────────────────┘
+         │
+    ┌────┴────┐
+    │         │
+   YES        NO
+    │         │
+    ▼         ▼
+┌─────────┐ ┌─────────────────┐
+│ Mapped  │ │ Semantic Search │
+│ Search  │ │ (Vector)        │
+└─────────┘ └─────────────────┘
+    │         │
+    └────┬────┘
+         │
+         ▼
+┌─────────────────────────┐
+│ 3. Return Results       │  → source: "mapped" or "semantic"
+└─────────────────────────┘
+```
+
+**Search Methods:**
+| Method | Description |
+|--------|-------------|
+| `mapped` | Direct lookup from training data (exact/fuzzy match) |
+| `semantic` | Vector similarity search |
+| `hybrid` | Combined results from both |
 
 ### 3. Vector Refresh (On-demand)
 
@@ -255,7 +321,7 @@ Role text is normalized before matching:
 
 ## Database Schema
 
-The service reads from the `skills` table:
+The service reads from the `skill_taxonamy` table:
 
 | Column | Type | Description |
 |--------|------|-------------|

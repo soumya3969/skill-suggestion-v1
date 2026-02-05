@@ -5,35 +5,35 @@ tags:
 - feature-extraction
 - dense
 - generated_from_trainer
-- dataset_size:334
+- dataset_size:269
 - loss:MultipleNegativesRankingLoss
 base_model: sentence-transformers/all-MiniLM-L6-v2
 widget:
-- source_sentence: Python Developer
+- source_sentence: Full Stack Developer
   sentences:
-  - gRPC
-  - Python
-  - PostgreSQL
-- source_sentence: Python Developer
+  - JavaScript
+  - Node.js
+  - Concurrency
+- source_sentence: Mobile App Developer
   sentences:
-  - Xcode
-  - Flask
-  - Firebase
-- source_sentence: Backend Developer
+  - iOS
+  - Pandas
+  - Linux
+- source_sentence: PHP Developer
   sentences:
-  - Database Design
-  - MongoDB
-  - MySQL
-- source_sentence: DevOps Engineer
-  sentences:
-  - Kubernetes
-  - CI/CD
-  - React.js
-- source_sentence: Frontend Developer
-  sentences:
+  - Vuex
+  - Mobile UI
   - CSS
-  - Cloud Security
-  - CSS
+- source_sentence: Ruby Developer
+  sentences:
+  - Webpack
+  - HTML
+  - Ansible
+- source_sentence: Node JS Developer
+  sentences:
+  - Ethereum
+  - Redux
+  - Memory Safety
 pipeline_tag: sentence-similarity
 library_name: sentence-transformers
 ---
@@ -88,9 +88,9 @@ from sentence_transformers import SentenceTransformer
 model = SentenceTransformer("sentence_transformers_model_id")
 # Run inference
 sentences = [
-    'Frontend Developer',
-    'CSS',
-    'Cloud Security',
+    'Node JS Developer',
+    'Redux',
+    'Ethereum',
 ]
 embeddings = model.encode(sentences)
 print(embeddings.shape)
@@ -99,9 +99,9 @@ print(embeddings.shape)
 # Get the similarity scores for the embeddings
 similarities = model.similarity(embeddings, embeddings)
 print(similarities)
-# tensor([[1.0000, 0.4342, 0.0818],
-#         [0.4342, 1.0000, 0.2130],
-#         [0.0818, 0.2130, 1.0000]])
+# tensor([[1.0000, 0.4759, 0.1517],
+#         [0.4759, 1.0000, 0.3789],
+#         [0.1517, 0.3789, 1.0000]])
 ```
 
 <!--
@@ -146,19 +146,19 @@ You can finetune this model on your own dataset.
 
 #### Unnamed Dataset
 
-* Size: 334 training samples
+* Size: 269 training samples
 * Columns: <code>sentence_0</code> and <code>sentence_1</code>
-* Approximate statistics based on the first 334 samples:
-  |         | sentence_0                                                                     | sentence_1                                                                     |
-  |:--------|:-------------------------------------------------------------------------------|:-------------------------------------------------------------------------------|
-  | type    | string                                                                         | string                                                                         |
-  | details | <ul><li>min: 4 tokens</li><li>mean: 4.8 tokens</li><li>max: 8 tokens</li></ul> | <ul><li>min: 3 tokens</li><li>mean: 4.2 tokens</li><li>max: 7 tokens</li></ul> |
+* Approximate statistics based on the first 269 samples:
+  |         | sentence_0                                                                      | sentence_1                                                                      |
+  |:--------|:--------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
+  | type    | string                                                                          | string                                                                          |
+  | details | <ul><li>min: 4 tokens</li><li>mean: 4.84 tokens</li><li>max: 8 tokens</li></ul> | <ul><li>min: 3 tokens</li><li>mean: 4.23 tokens</li><li>max: 7 tokens</li></ul> |
 * Samples:
-  | sentence_0                             | sentence_1                       |
-  |:---------------------------------------|:---------------------------------|
-  | <code>Data Scientist</code>            | <code>Statistics</code>          |
-  | <code>Java Full Stack Developer</code> | <code>Spring Boot</code>         |
-  | <code>Security Engineer</code>         | <code>Penetration Testing</code> |
+  | sentence_0                          | sentence_1          |
+  |:------------------------------------|:--------------------|
+  | <code>Tailwind CSS Developer</code> | <code>HTML</code>   |
+  | <code>DevOps Engineer</code>        | <code>Docker</code> |
+  | <code>Game Developer</code>         | <code>Unity</code>  |
 * Loss: [<code>MultipleNegativesRankingLoss</code>](https://sbert.net/docs/package_reference/sentence_transformer/losses.html#multiplenegativesrankingloss) with these parameters:
   ```json
   {

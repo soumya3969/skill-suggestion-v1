@@ -69,35 +69,83 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Skill Suggestion Service")
 
 
+# OpenAPI tags metadata for better documentation organization
+tags_metadata = [
+    {
+        "name": "Suggestions",
+        "description": "Skill suggestion endpoints. Get relevant skills for job roles.",
+    },
+    {
+        "name": "Management",
+        "description": "Service management endpoints. Health checks and vector refresh.",
+    },
+    {
+        "name": "Training",
+        "description": "Model training endpoints. Train custom models on role-skill mappings.",
+    },
+    {
+        "name": "Root",
+        "description": "Service information and status.",
+    },
+]
+
 # Create FastAPI application
 app = FastAPI(
     title="Skill Suggestion Service",
     description="""
-    A semantic skill suggestion service using vector similarity with trainable model.
-    
-    ## Features
-    
-    - **Skill Suggestion**: Given a job role, suggests relevant skills using semantic similarity
-    - **Model Training**: Fine-tune the model on role-skill pairs for better associations
-    - **Vector Refresh**: Rebuild skill vectors from database without service restart
-    - **Health Check**: Monitor service status and initialization state
-    
-    ## How it works
-    
-    1. Skills are loaded from PostgreSQL (only active skills where curatal_skill = 1)
-    2. Each skill name is converted to a vector embedding using sentence-transformers
-    3. Model can be fine-tuned on labeled role-skill pairs to learn associations
-    4. When a role is queried, it's normalized and embedded
-    5. Cosine similarity finds the most relevant skills
-    6. Results above threshold (0.45) are returned
-    
-    ## Training
-    
-    Upload CSV training data with role-skill mappings, then train the model.
-    The trained model learns associations like "MERN Stack Developer" → MongoDB, React, etc.
-    """,
-    version="1.0.0",
-    lifespan=lifespan
+        ## Overview
+
+        A semantic skill suggestion service using vector similarity with trainable model.
+
+        ## Features
+
+        - **Skill Suggestion**: Given a job role, suggests relevant skills using semantic similarity
+        - **Model Training**: Fine-tune the model on role-skill pairs for better associations
+        - **Vector Refresh**: Rebuild skill vectors from database without service restart
+        - **Health Check**: Monitor service status and initialization state
+
+        ## How it works
+
+        1. Skills are loaded from PostgreSQL (only active skills where `curatal_skill = 1`)
+        2. Each skill name is converted to a vector embedding using sentence-transformers
+        3. Model can be fine-tuned on labeled role-skill pairs to learn associations
+        4. When a role is queried, it's normalized and embedded
+        5. Cosine similarity finds the most relevant skills
+        6. Results above threshold (0.45) are returned
+
+        ## Training
+
+        Upload CSV training data with role-skill mappings, then train the model.
+        The trained model learns associations like "MERN Stack Developer" → MongoDB, React, etc.
+
+        ### Training Data Format
+
+        ```csv
+        role,skills
+        "MERN Stack Developer","MongoDB,Express.js,React.js,Node.js"
+        "Data Scientist","Python,Machine Learning,Pandas,TensorFlow"
+        ```
+
+        ## Search Methods
+
+        | Method | Description |
+        |--------|-------------|
+        | `mapped` | Skills from training data (direct lookup) |
+        | `hybrid` | Combination of mapped + semantic |
+        | `semantic` | Pure vector similarity (fallback) |
+            """,
+    version="2.0.0",
+    openapi_tags=tags_metadata,
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    contact={
+        "name": "Skill Suggestion API",
+    },
+    license_info={
+        "name": "MIT",
+    },
 )
 
 # Include API routers
@@ -112,15 +160,25 @@ async def root():
     return {
         "service": "Skill Suggestion Service",
         "version": "2.0.0",
+        "documentation": {
+            "swagger_ui": "/docs",
+            "redoc": "/redoc",
+            "openapi_json": "/openapi.json"
+        },
         "endpoints": {
-            "suggest_skills": "POST /suggest-skills",
-            "refresh_vectors": "POST /skills/refresh-vectors",
-            "health": "GET /skills/health",
-            "train_model": "POST /model/train",
-            "model_status": "GET /model/status",
-            "upload_training_data": "POST /model/upload-training-data",
-            "list_training_files": "GET /model/training-files",
-            "delete_model": "DELETE /model/trained",
-            "docs": "GET /docs"
+            "suggestions": {
+                "suggest_skills": "POST /suggest-skills"
+            },
+            "management": {
+                "refresh_vectors": "POST /skills/refresh-vectors",
+                "health": "GET /skills/health"
+            },
+            "training": {
+                "train_model": "POST /model/train",
+                "model_status": "GET /model/status",
+                "upload_training_data": "POST /model/upload-training-data",
+                "list_training_files": "GET /model/training-files",
+                "delete_model": "DELETE /model/trained"
+            }
         }
     }

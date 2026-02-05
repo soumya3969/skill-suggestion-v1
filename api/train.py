@@ -72,7 +72,7 @@ class ModelStatusResponse(BaseModel):
     "/model/train",
     response_model=TrainResponse,
     summary="Train skill suggestion model",
-    description="Fine-tune the model on role-skill pairs from CSV training data"
+    description="Fine-tune the model on role-skill pairs from CSV training data/n/nTraining data format (CSV):/nrole,skills/n\"MERN Stack Developer\",\"MongoDB,Express.js,React.js,Node.js\"/n\"Data Scientist\",\"Python,Machine Learning,Pandas,NumPy,SQL,TensorFlow\""
 )
 async def train_skill_model(request: TrainRequest) -> TrainResponse:
     """
