@@ -17,7 +17,7 @@ iOS Developer,"iOS,Swift,Objective-C,Xcode,UIKit,SwiftUI,Core Data,REST API"
 React Developer,"React.js,JavaScript,Redux,TypeScript,HTML,CSS,Webpack,Jest"
 Angular Developer,"Angular,TypeScript,JavaScript,RxJS,HTML,CSS,NgRx,REST API"
 Vue.js Developer,"Vue.js,JavaScript,Vuex,TypeScript,HTML,CSS,Nuxt.js,REST API"
-.NET Developer,"C#,.NET Core,ASP.NET,SQL Server,Entity Framework,Azure,REST API,LINQ"
+.NET Developer,".NET,C#,.NET Core,ASP.NET,SQL Server,Entity Framework,Azure,REST API,LINQ"
 PHP Developer,"PHP,Laravel,MySQL,JavaScript,HTML,CSS,REST API,Composer"
 Ruby Developer,"Ruby,Ruby on Rails,PostgreSQL,JavaScript,HTML,CSS,REST API,RSpec"
 Go Developer,"Go,Golang,REST API,Docker,Kubernetes,PostgreSQL,Microservices,gRPC"
@@ -33,3 +33,4 @@ Game Developer,"Unity,C#,Unreal Engine,C++,Game Design,3D Modeling,Physics Engin
 MongoDB Developer,"MongoDB,Mongoose,PostgreSQL,Node.js,JavaScript,HTML,CSS,REST API,Git"
 React JS Developer,"React.js,JavaScript,HTML,CSS,TypeScript,Redux,Webpack,Responsive Design"
 Node JS Developer,"Node.js,JavaScript,HTML,CSS,TypeScript,Redux,Webpack,Responsive Design"
+

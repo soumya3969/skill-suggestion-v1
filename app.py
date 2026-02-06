@@ -18,8 +18,9 @@ from dotenv import load_dotenv
 from api.suggest import router as suggest_router
 from api.refresh import router as refresh_router
 from api.train import router as train_router
-from core.similarity import initialize_search_engine
+from core.similarity import initialize_search_engine, refresh_search_engine
 from core.role_mapper import initialize_role_mapper
+from core.trainer import trained_model_exists, train_model, DEFAULT_TRAINING_FILE
 
 # Load environment variables from .env file
 load_dotenv()
@@ -62,6 +63,29 @@ async def lifespan(app: FastAPI):
         logger.info(f"Role mapper initialized with {role_count} role mappings")
     except Exception as e:
         logger.warning(f"Role mapper initialization failed (non-critical): {e}")
+    
+    # Auto-train model if trained model is missing but training data exists
+    try:
+        if not trained_model_exists():
+            if DEFAULT_TRAINING_FILE.exists():
+                logger.info("Trained model not found but training data exists - starting automatic training")
+                result = train_model()
+                if result.success:
+                    logger.info(f"Auto-training complete: {result.message}")
+                    # Refresh vectors to use the newly trained model
+                    logger.info("Refreshing vectors with newly trained model")
+                    refresh_search_engine()
+                    logger.info("Vectors refreshed with trained model embeddings")
+                else:
+                    logger.warning(f"Auto-training failed: {result.message}")
+                    logger.info("Continuing with base model")
+            else:
+                logger.info("Trained model not found and no training data available - using base model")
+        else:
+            logger.info("Trained model found - using trained model for embeddings")
+    except Exception as e:
+        logger.warning(f"Auto-training failed (non-critical): {e}")
+        logger.info("Continuing with base model")
     
     yield
     
