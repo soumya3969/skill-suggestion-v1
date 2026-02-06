@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from api.suggest import router as suggest_router
 from api.refresh import router as refresh_router
 from api.train import router as train_router
+from api.knowledge_base import router as kb_router
 from core.similarity import initialize_search_engine, refresh_search_engine
 from core.role_mapper import initialize_role_mapper
 from core.trainer import trained_model_exists, train_model, DEFAULT_TRAINING_FILE
@@ -108,6 +109,10 @@ tags_metadata = [
         "description": "Model training endpoints. Train custom models on role-skill mappings.",
     },
     {
+        "name": "Knowledge Base",
+        "description": "Manage role-skill mappings in the training data CSV file.",
+    },
+    {
         "name": "Root",
         "description": "Service information and status.",
     },
@@ -176,6 +181,7 @@ app = FastAPI(
 app.include_router(suggest_router, tags=["Suggestions"])
 app.include_router(refresh_router, tags=["Management"])
 app.include_router(train_router, tags=["Training"])
+app.include_router(kb_router, tags=["Knowledge Base"])
 
 
 @app.get("/", tags=["Root"])
@@ -203,6 +209,12 @@ async def root():
                 "upload_training_data": "POST /model/upload-training-data",
                 "list_training_files": "GET /model/training-files",
                 "delete_model": "DELETE /model/trained"
+            },
+            "knowledge_base": {
+                "get_mappings": "GET /knowledge-base/mappings",
+                "add_mapping": "POST /knowledge-base/mappings",
+                "update_mapping": "PUT /knowledge-base/mappings",
+                "delete_mapping": "DELETE /knowledge-base/mappings/{role}"
             }
         }
     }
