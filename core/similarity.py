@@ -199,7 +199,7 @@ class SkillSearchEngine:
     def find_skill_by_name(
         self,
         skill_name: str,
-        fuzzy_threshold: float = 0.75
+        fuzzy_threshold: float = 0.80
     ) -> Optional[Tuple[int, str, float]]:
         """
         Find a skill in the database by name.
@@ -214,22 +214,55 @@ class SkillSearchEngine:
         """
         normalized = normalize_text(skill_name).lower()
         
-        # Exact match
+        # Exact match (highest priority)
         if normalized in self._skill_name_to_id:
             skill_id = self._skill_name_to_id[normalized]
             return skill_id, self._skill_names[skill_id], 1.0
         
-        # Fuzzy match
+        # Try matching with common variations
+        # e.g., "React.js" -> "react js", "react.js", "reactjs"
+        variations = [
+            normalized,
+            normalized.replace('.', ' '),
+            normalized.replace('.', ''),
+            normalized.replace(' ', ''),
+            normalized.replace('-', ' '),
+            normalized.replace('-', ''),
+        ]
+        
+        for variant in variations:
+            if variant in self._skill_name_to_id:
+                skill_id = self._skill_name_to_id[variant]
+                return skill_id, self._skill_names[skill_id], 0.98
+        
+        # Fuzzy match with stricter rules for short strings
         best_match = None
         best_score = 0.0
         best_id = None
         
         for db_name, skill_id in self._skill_name_to_id.items():
+            # Skip if length difference is too large (prevents "C" matching "CSS")
+            len_diff = abs(len(normalized) - len(db_name))
+            max_len = max(len(normalized), len(db_name))
+            
+            # For short strings (< 5 chars), require very close length
+            if max_len < 5 and len_diff > 1:
+                continue
+            
+            # For medium strings, allow moderate length difference
+            if max_len >= 5 and len_diff > max_len * 0.5:
+                continue
+            
             score = SequenceMatcher(None, normalized, db_name).ratio()
             
-            # Boost score if one contains the other
-            if normalized in db_name or db_name in normalized:
-                score = max(score, 0.85)
+            # Boost score if one fully contains the other (and meaningful length)
+            if len(normalized) >= 3 and len(db_name) >= 3:
+                if normalized in db_name or db_name in normalized:
+                    # Only boost if the contained string is substantial
+                    shorter = min(len(normalized), len(db_name))
+                    longer = max(len(normalized), len(db_name))
+                    if shorter / longer >= 0.5:  # At least 50% overlap
+                        score = max(score, 0.88)
             
             if score > best_score:
                 best_score = score
