@@ -160,6 +160,78 @@
   margin: 0;
 }
 
+/* Mappings search */
+.mappings-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.mappings-search-row .search-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.mappings-search-row .search-label svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.mappings-search-input {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+  padding: 0.625rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #1e293b;
+  background: #f8fafc;
+}
+
+.mappings-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.mappings-search-input:hover,
+.mappings-search-input:focus {
+  border-color: #667eea;
+  outline: none;
+  background-color: white;
+}
+
+.mappings-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: #f1f5f9;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.mappings-search-clear:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.mappings-search-clear svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* Table */
 .mappings-table-container {
   overflow-x: auto;
@@ -220,6 +292,72 @@
 
 .actions-cell {
   white-space: nowrap;
+}
+
+/* Mappings pagination */
+.mappings-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pagination-page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.pagination-page-size select {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: white;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.pagination-page-size select:hover,
+.pagination-page-size select:focus {
+  border-color: #667eea;
+  outline: none;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pagination-buttons .btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-page-num {
+  font-size: 0.9rem;
+  color: #64748b;
+  min-width: 6rem;
+  text-align: center;
 }
 
 /* System Section */

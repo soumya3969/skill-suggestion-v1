@@ -159,11 +159,24 @@ export async function uploadTrainingData(file, filename = null) {
 // ============================================
 
 /**
- * Get role-skill mappings from training data
- * This fetches the CSV content via a custom endpoint we'll need
+ * Get role-skill mappings from training data (paginated, optional search).
+ * @param {Object} options
+ * @param {number} [options.page=1] - Page number (1-based)
+ * @param {number} [options.pageSize=10] - Items per page
+ * @param {string} [options.search] - Search by role or skill name (case-insensitive)
+ * @returns {Promise<{ mappings: Array, count: number, total: number, page: number, page_size: number, source_file: string }>}
  */
-export async function getRoleMappings() {
-  return fetchApi('/knowledge-base/mappings');
+export async function getRoleMappings(options = {}) {
+  const { page = 1, pageSize = 10, search } = options;
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (search != null && String(search).trim() !== '') {
+    params.set('search', String(search).trim());
+  }
+  const url = `/knowledge-base/mappings?${params.toString()}`;
+  return fetchApi(url);
 }
 
 /**

@@ -5,35 +5,35 @@ tags:
 - feature-extraction
 - dense
 - generated_from_trainer
-- dataset_size:295
+- dataset_size:304
 - loss:MultipleNegativesRankingLoss
 base_model: sentence-transformers/all-MiniLM-L6-v2
 widget:
-- source_sentence: Mobile App Developer
-  sentences:
-  - Kotlin
-  - Mongoose
-  - Ruby on Rails
 - source_sentence: C++ Developer
   sentences:
+  - Python
+  - TensorFlow
+  - Selenium
+- source_sentence: Frontend Developer
+  sentences:
+  - HTML
+  - Responsive Design
+  - Java
+- source_sentence: PHP Developer
+  sentences:
+  - Kafka
+  - PHP
   - CSS
-  - Hibernate
-  - .NET Core
-- source_sentence: AI Engineer
+- source_sentence: React JS Developer
   sentences:
-  - NLP
-  - JavaScript
-  - Linux
-- source_sentence: Go Developer
+  - HTML
+  - HTML
+  - Redis
+- source_sentence: Machine Learning Engineer
   sentences:
-  - Go
-  - Kubernetes
-  - Golang
-- source_sentence: .NET Developer
-  sentences:
-  - PostgreSQL
-  - ASP.NET
-  - PostgreSQL
+  - Pandas
+  - Deep Learning
+  - 3D Modeling
 pipeline_tag: sentence-similarity
 library_name: sentence-transformers
 ---
@@ -88,9 +88,9 @@ from sentence_transformers import SentenceTransformer
 model = SentenceTransformer("sentence_transformers_model_id")
 # Run inference
 sentences = [
-    '.NET Developer',
-    'ASP.NET',
-    'PostgreSQL',
+    'Machine Learning Engineer',
+    'Deep Learning',
+    'Pandas',
 ]
 embeddings = model.encode(sentences)
 print(embeddings.shape)
@@ -99,9 +99,9 @@ print(embeddings.shape)
 # Get the similarity scores for the embeddings
 similarities = model.similarity(embeddings, embeddings)
 print(similarities)
-# tensor([[1.0000, 0.5121, 0.1307],
-#         [0.5121, 1.0000, 0.4186],
-#         [0.1307, 0.4186, 1.0000]])
+# tensor([[1.0000, 0.5001, 0.3151],
+#         [0.5001, 1.0000, 0.3736],
+#         [0.3151, 0.3736, 1.0000]])
 ```
 
 <!--
@@ -146,19 +146,19 @@ You can finetune this model on your own dataset.
 
 #### Unnamed Dataset
 
-* Size: 295 training samples
+* Size: 304 training samples
 * Columns: <code>sentence_0</code> and <code>sentence_1</code>
-* Approximate statistics based on the first 295 samples:
+* Approximate statistics based on the first 304 samples:
   |         | sentence_0                                                                      | sentence_1                                                                      |
   |:--------|:--------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
   | type    | string                                                                          | string                                                                          |
-  | details | <ul><li>min: 4 tokens</li><li>mean: 4.83 tokens</li><li>max: 8 tokens</li></ul> | <ul><li>min: 3 tokens</li><li>mean: 4.21 tokens</li><li>max: 7 tokens</li></ul> |
+  | details | <ul><li>min: 4 tokens</li><li>mean: 4.84 tokens</li><li>max: 8 tokens</li></ul> | <ul><li>min: 3 tokens</li><li>mean: 4.22 tokens</li><li>max: 7 tokens</li></ul> |
 * Samples:
-  | sentence_0                        | sentence_1              |
-  |:----------------------------------|:------------------------|
-  | <code>Blockchain Developer</code> | <code>Solidity</code>   |
-  | <code>Node JS Developer</code>    | <code>JavaScript</code> |
-  | <code>Node JS Developer</code>    | <code>CSS</code>        |
+  | sentence_0                        | sentence_1                    |
+  |:----------------------------------|:------------------------------|
+  | <code>System Administrator</code> | <code>Linux</code>            |
+  | <code>AI Engineer</code>          | <code>Python</code>           |
+  | <code>Data Scientist</code>       | <code>Machine Learning</code> |
 * Loss: [<code>MultipleNegativesRankingLoss</code>](https://sbert.net/docs/package_reference/sentence_transformer/losses.html#multiplenegativesrankingloss) with these parameters:
   ```json
   {

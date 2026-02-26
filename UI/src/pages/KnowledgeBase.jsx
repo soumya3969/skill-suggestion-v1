@@ -12,8 +12,12 @@ import {
   updateRoleMapping,
   deleteRoleMapping
 } from '../services/api';
+import { usePagination } from '../hooks/usePagination';
+import { useDebounce } from '../hooks/useDebounce';
 import LoadingSpinner from '../components/LoadingSpinner';
 import './KnowledgeBase.css';
+
+const MAPPINGS_PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 function KnowledgeBase() {
   // System status
@@ -21,10 +25,22 @@ function KnowledgeBase() {
   const [modelStatus, setModelStatus] = useState(null);
   const [trainingFiles, setTrainingFiles] = useState([]);
   
-  // Role mappings
+  // Role mappings (current page from API)
   const [mappings, setMappings] = useState([]);
+  const [totalMappings, setTotalMappings] = useState(0);
   const [mappingsLoading, setMappingsLoading] = useState(true);
   const [mappingsError, setMappingsError] = useState(null);
+
+  // Pagination for mappings (server-side)
+  const mappingsPagination = usePagination({
+    total: totalMappings,
+    initialPageSize: 10,
+    initialPage: 1,
+  });
+
+  // Search for mappings (debounced, triggers API)
+  const [mappingsSearch, setMappingsSearch] = useState('');
+  const debouncedMappingsSearch = useDebounce(mappingsSearch, 300);
   
   // UI state
   const [activeTab, setActiveTab] = useState('mappings');
@@ -47,12 +63,11 @@ function KnowledgeBase() {
     batchSize: 16
   });
   
-  // Fetch initial data
+  // Fetch system status on mount
   useEffect(() => {
     fetchSystemStatus();
-    fetchMappings();
   }, []);
-  
+
   const fetchSystemStatus = async () => {
     try {
       const [healthData, statusData, filesData] = await Promise.all([
@@ -68,21 +83,41 @@ function KnowledgeBase() {
       console.error('Failed to fetch system status:', err);
     }
   };
-  
-  const fetchMappings = async () => {
+
+  const fetchMappings = useCallback(async (page, pageSize, search) => {
     setMappingsLoading(true);
     setMappingsError(null);
     
     try {
-      const data = await getRoleMappings();
+      const data = await getRoleMappings({ page, pageSize, search: search || undefined });
       setMappings(data.mappings || []);
+      setTotalMappings(data.total ?? 0);
     } catch (err) {
       setMappingsError(err.message);
       setMappings([]);
+      setTotalMappings(0);
     } finally {
       setMappingsLoading(false);
     }
-  };
+  }, []);
+
+  // When search term changes, reset to page 1 so we don't land on an empty page
+  useEffect(() => {
+    mappingsPagination.setPage(1);
+  }, [debouncedMappingsSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch mappings when page, page size, or debounced search changes
+  useEffect(() => {
+    fetchMappings(mappingsPagination.page, mappingsPagination.pageSize, debouncedMappingsSearch);
+  }, [mappingsPagination.page, mappingsPagination.pageSize, debouncedMappingsSearch, fetchMappings]);
+
+  // If total decreased (e.g. after delete) and current page is beyond last page, go to page 1
+  const { page, totalPages, setPage } = mappingsPagination;
+  useEffect(() => {
+    if (totalMappings > 0 && totalPages > 0 && page > totalPages) {
+      setPage(1);
+    }
+  }, [totalMappings, totalPages, page, setPage]);
   
   // Actions
   const handleRefresh = async () => {
@@ -227,7 +262,7 @@ function KnowledgeBase() {
       }
       
       closeModal();
-      await fetchMappings();
+      await fetchMappings(mappingsPagination.page, mappingsPagination.pageSize, debouncedMappingsSearch);
       setActionMessage({
         type: 'success',
         text: modalMode === 'add' ? 'Mapping added successfully' : 'Mapping updated successfully'
@@ -246,7 +281,7 @@ function KnowledgeBase() {
     
     try {
       await deleteRoleMapping(role);
-      await fetchMappings();
+      await fetchMappings(mappingsPagination.page, mappingsPagination.pageSize, debouncedMappingsSearch);
       setActionMessage({
         type: 'success',
         text: 'Mapping deleted successfully'
@@ -321,6 +356,39 @@ function KnowledgeBase() {
                 Add Mapping
               </button>
             </div>
+            <div className="mappings-search-row">
+              <label htmlFor="mappings-search" className="search-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Search
+              </label>
+              <input
+                id="mappings-search"
+                type="search"
+                className="mappings-search-input"
+                placeholder="Search by role or skills..."
+                value={mappingsSearch}
+                onChange={(e) => setMappingsSearch(e.target.value)}
+                aria-label="Search mappings by role or skills"
+                autoComplete="off"
+              />
+              {mappingsSearch.length > 0 && (
+                <button
+                  type="button"
+                  className="mappings-search-clear"
+                  onClick={() => setMappingsSearch('')}
+                  aria-label="Clear search"
+                  title="Clear search"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
             
             {mappingsLoading ? (
               <div className="loading-state">
@@ -334,65 +402,123 @@ function KnowledgeBase() {
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 <p>{mappingsError}</p>
-                <button className="btn-secondary" onClick={fetchMappings}>Retry</button>
+                <button className="btn-secondary" onClick={() => fetchMappings(mappingsPagination.page, mappingsPagination.pageSize, debouncedMappingsSearch)}>Retry</button>
               </div>
-            ) : mappings.length === 0 ? (
+            ) : mappings.length === 0 && totalMappings === 0 ? (
               <div className="empty-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                   <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                 </svg>
-                <p>No role mappings found</p>
-                <span>Add your first mapping or upload training data</span>
+                <p>
+                  {debouncedMappingsSearch.trim() ? 'No mappings match your search' : 'No role mappings found'}
+                </p>
+                <span>
+                  {debouncedMappingsSearch.trim()
+                    ? 'Try a different search term or clear the search'
+                    : 'Add your first mapping or upload training data'}
+                </span>
               </div>
             ) : (
-              <div className="mappings-table-container">
-                <table className="mappings-table">
-                  <thead>
-                    <tr>
-                      <th>Role</th>
-                      <th>Skills</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mappings.map((mapping, index) => (
-                      <tr key={index}>
-                        <td className="role-cell">{mapping.role}</td>
-                        <td className="skills-cell">
-                          <div className="skill-tags">
-                            {mapping.skills.map((skill, i) => (
-                              <span key={i} className="skill-tag">{skill}</span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="actions-cell">
-                          <button 
-                            className="btn-icon" 
-                            title="Edit"
-                            onClick={() => openEditModal(mapping)}
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          </button>
-                          <button 
-                            className="btn-icon danger" 
-                            title="Delete"
-                            onClick={() => handleDeleteMapping(mapping.role)}
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
-                        </td>
+              <>
+                <div className="mappings-table-container">
+                  <table className="mappings-table">
+                    <thead>
+                      <tr>
+                        <th>Role</th>
+                        <th>Skills</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {mappings.map((mapping, index) => (
+                        <tr key={index}>
+                          <td className="role-cell">{mapping.role}</td>
+                          <td className="skills-cell">
+                            <div className="skill-tags">
+                              {mapping.skills.map((skill, i) => (
+                                <span key={i} className="skill-tag">{skill}</span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="actions-cell">
+                            <button 
+                              className="btn-icon" 
+                              title="Edit"
+                              onClick={() => openEditModal(mapping)}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                            </button>
+                            <button 
+                              className="btn-icon danger" 
+                              title="Delete"
+                              onClick={() => handleDeleteMapping(mapping.role)}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {totalMappings > 0 && (
+                  <div className="mappings-pagination">
+                    <div className="pagination-info">
+                      Showing {mappingsPagination.startItem}–{mappingsPagination.endItem} of {totalMappings}
+                    </div>
+                    <div className="pagination-controls">
+                      <label className="pagination-page-size">
+                        <span>Per page:</span>
+                        <select
+                          value={mappingsPagination.pageSize}
+                          onChange={(e) => mappingsPagination.setPageSize(Number(e.target.value))}
+                          aria-label="Items per page"
+                        >
+                          {MAPPINGS_PAGE_SIZE_OPTIONS.map((size) => (
+                            <option key={size} value={size}>{size}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="pagination-buttons">
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          disabled={!mappingsPagination.hasPrevPage}
+                          onClick={mappingsPagination.goToPrevPage}
+                          title="Previous page"
+                          aria-label="Previous page"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="15 18 9 12 15 6" />
+                          </svg>
+                        </button>
+                        <span className="pagination-page-num">
+                          Page {mappingsPagination.page} of {mappingsPagination.totalPages || 1}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          disabled={!mappingsPagination.hasNextPage}
+                          onClick={mappingsPagination.goToNextPage}
+                          title="Next page"
+                          aria-label="Next page"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -419,7 +545,7 @@ function KnowledgeBase() {
                       <span className="stat-label">Skills Indexed</span>
                     </div>
                     <div className="stat">
-                      <span className="stat-value">{health?.vectors_loaded ? 'Yes' : 'No'}</span>
+                      <span className="stat-value">{health?.initialized ? 'Yes' : 'No'}</span>
                       <span className="stat-label">Vectors Loaded</span>
                     </div>
                   </div>

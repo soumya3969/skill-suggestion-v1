@@ -4,8 +4,8 @@ Endpoints for managing role-skill mappings in training data CSV
 """
 import csv
 from pathlib import Path
-from typing import List
-from fastapi import APIRouter, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.role_mapper import reload_role_mapper
@@ -28,9 +28,12 @@ class RoleMapping(BaseModel):
 
 
 class MappingsResponse(BaseModel):
-    """Response containing all role mappings"""
+    """Response containing role mappings (paginated)"""
     mappings: List[RoleMapping]
-    count: int
+    count: int  # number of items on this page
+    total: int  # total number of mappings
+    page: int
+    page_size: int
     source_file: str
 
 
@@ -133,20 +136,52 @@ def write_csv_mappings(mappings: List[RoleMapping], filepath: Path = DEFAULT_CSV
 # API Endpoints
 # ============================================
 
+DEFAULT_PAGE_SIZE = 10
+MAX_PAGE_SIZE = 100
+
+
+def filter_mappings_by_search(mappings: List[RoleMapping], search: str) -> List[RoleMapping]:
+    """
+    Filter mappings where the search term appears in role or in any skill (case-insensitive).
+    """
+    if not search or not search.strip():
+        return mappings
+    term = search.strip().lower()
+    return [
+        m
+        for m in mappings
+        if term in m.role.lower()
+        or any(term in s.lower() for s in m.skills)
+    ]
+
+
 @router.get("/mappings", response_model=MappingsResponse)
-async def get_mappings():
+async def get_mappings(
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="Number of items per page"),
+    search: Optional[str] = Query(None, description="Search by role or skill name (case-insensitive)"),
+):
     """
-    Get all role-skill mappings from training data.
-    
-    Returns a list of all role-skill mappings defined in the 
-    training data CSV file.
+    Get role-skill mappings from training data with server-side pagination and optional search.
+
+    Use `search` to filter by role or skill name. Use `page` and `page_size` to navigate.
     """
-    mappings = read_csv_mappings()
-    
+    all_mappings = read_csv_mappings()
+    if search:
+        all_mappings = filter_mappings_by_search(all_mappings, search)
+    total = len(all_mappings)
+
+    start = (page - 1) * page_size
+    end = start + page_size
+    page_mappings = all_mappings[start:end]
+
     return MappingsResponse(
-        mappings=mappings,
-        count=len(mappings),
-        source_file=str(DEFAULT_CSV_FILE.name)
+        mappings=page_mappings,
+        count=len(page_mappings),
+        total=total,
+        page=page,
+        page_size=page_size,
+        source_file=str(DEFAULT_CSV_FILE.name),
     )
 
 
